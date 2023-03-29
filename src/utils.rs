@@ -1,12 +1,13 @@
 use anyhow::Result;
 
-pub(crate) fn as_u32_le(array: &[u8]) -> u32 {
-    ((array[0] as u32) << 0)
-        + ((array[1] as u32) << 8)
-        + ((array[2] as u32) << 16)
-        + ((array[3] as u32) << 24)
-}
+pub(crate) type ID = [u8; 16];
 
-pub(crate) fn hex_to_u32(hex_string: &str) -> Result<u32> {
-    Ok(as_u32_le(&hex::decode(hex_string)?[..]))
+pub(crate) fn hex_to_id(hex_string: &str) -> Result<ID> {
+    let decoded_vec = hex::decode(hex_string)?;
+    let mut result: ID = [0u8; 16];
+    for (i, v) in decoded_vec.iter().enumerate() {
+        result[i] = *v
+    }
+
+    Ok(result)
 }

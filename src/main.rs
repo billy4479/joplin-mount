@@ -4,7 +4,7 @@ use anyhow::Result;
 use notes::Note;
 use regex::{Captures, Regex};
 use resources::Resource;
-use utils::hex_to_u32;
+use utils::hex_to_id;
 
 mod notes;
 mod resources;
@@ -55,7 +55,7 @@ fn main() -> Result<()> {
 
         let mut i = 0;
         let replaced = re.replace_all(&note.content, |caps: &Captures| {
-            let reference_id = hex_to_u32(&caps[1]).unwrap();
+            let reference_id = hex_to_id(&caps[1]).unwrap();
             let resource = resources.get(&reference_id);
             let substitution = match resource {
                 Some(resource) => resource.path.to_str().expect("").to_owned(),
@@ -69,10 +69,7 @@ fn main() -> Result<()> {
                             .expect("")
                             .to_owned(),
                         None => {
-                            return format!(
-                                "RESOURCE NOT FOUND: {}",
-                                hex::encode(reference_id.to_le_bytes())
-                            )
+                            return format!("RESOURCE NOT FOUND: {}", hex::encode(reference_id))
                         }
                     }
                 }

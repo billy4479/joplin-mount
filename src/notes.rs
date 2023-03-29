@@ -1,15 +1,15 @@
-use std::{collections::HashMap, mem, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::Result;
 
-use crate::utils::{as_u32_le, hex_to_u32};
+use crate::utils::{hex_to_id, ID};
 
 struct Folder {
     name: String,
-    parent: Option<u32>,
+    parent: Option<ID>,
 }
 
-type Folders = HashMap<u32, Folder>;
+type Folders = HashMap<ID, Folder>;
 
 impl Folder {
     pub fn get_path_with_parent(&self, folders: &Folders) -> PathBuf {
@@ -25,7 +25,7 @@ impl Folder {
 
 #[derive(Debug)]
 pub(crate) struct Note {
-    pub id: u32,
+    pub id: ID,
     pub folder_path: PathBuf,
     pub title: String,
     pub content: String,
@@ -38,13 +38,13 @@ impl Note {
         let mut folders = Folders::new();
 
         connection.iterate("SELECT id,title,parent_id FROM folders", |row| {
-            let id = hex_to_u32(row[0].1.expect("")).unwrap();
+            let id = hex_to_id(row[0].1.expect("")).unwrap();
             let name = row[1].1.expect("").to_owned();
             let parent = row[2].1.expect("");
             let parent = if parent.is_empty() {
                 None
             } else {
-                Some(as_u32_le(&hex::decode(parent).unwrap()[..]))
+                Some(hex_to_id(parent).unwrap())
             };
 
             folders.insert(id, Folder { name, parent });
@@ -52,7 +52,7 @@ impl Note {
             true
         })?;
 
-        let folder_and_path: HashMap<u32, (&Folder, PathBuf)> = folders
+        let folder_and_path: HashMap<ID, (&Folder, PathBuf)> = folders
             .iter()
             .map(|(id, folder)| {
                 let path = folder.get_path_with_parent(&folders);
@@ -64,9 +64,9 @@ impl Note {
         connection.iterate("SELECT title,body,parent_id,id FROM notes", |row| {
             let title = row[0].1.expect("");
             let content = row[1].1.expect("");
-            let parent_id = hex_to_u32(row[2].1.expect("")).unwrap();
+            let parent_id = hex_to_id(row[2].1.expect("")).unwrap();
             let (_, path) = folder_and_path.get(&parent_id).expect("");
-            let id = hex_to_u32(row[3].1.expect("")).unwrap();
+            let id = hex_to_id(row[3].1.expect("")).unwrap();
 
             result.push(Note {
                 id,
