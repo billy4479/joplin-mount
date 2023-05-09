@@ -3,8 +3,8 @@ use std::{fs, path::PathBuf};
 use anyhow::Result;
 use notes::Note;
 use replace::{
-    replace_center_tag, replace_curly_braces, replace_latex, replace_links, replace_md_to_html,
-    replace_width,
+    replace_center_tag, replace_curly_braces, replace_gt_in_quote, replace_latex, replace_links,
+    replace_md_to_html, replace_width,
 };
 use resources::extract_resources;
 use rust_embed::RustEmbed;
@@ -81,6 +81,7 @@ fn main() -> Result<()> {
         )
         .unwrap();
         let replaced = replace_latex(html_content, true);
+        let replaced = replace_gt_in_quote(replaced);
 
         fs::write(
             html_path,
@@ -93,7 +94,7 @@ fn main() -> Result<()> {
         <link rel="stylesheet" href="/assets/styles.css"/>
 
         <!-- Katex -->
-        <!-- Remove the use of CDNs and make this local -->
+        <!-- TODO: Remove the use of CDNs and make this local -->
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css" integrity="sha384-vKruj+a13U8yHIkAyGgK1J3ArTLzrFGBbBc0tDp4ad/EyewESeXE/Iv67Aj8gKZ0" crossorigin="anonymous">
         <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.js" integrity="sha384-PwRUT/YqbnEjkZO0zZxNqcxACrXe+j766U2amXcgMg5457rve2Y7I6ZJSm2A0mS4" crossorigin="anonymous"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/contrib/mhchem.min.js" integrity="sha384-RTN08a0AXIioPBcVosEqPUfKK+rPp+h1x/izR7xMkdMyuwkcZCWdxO+RSwIFtJXN"  crossorigin="anonymous"></script>

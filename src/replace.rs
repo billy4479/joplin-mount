@@ -77,7 +77,9 @@ pub(crate) fn replace_center_tag(content: String) -> String {
 
 pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
     let mut iter = content.chars().peekable();
-
+    if content.contains("# Funzione continua") {
+        println!("LOL")
+    }
     let mut result = String::new();
     result.reserve(content.len());
 
@@ -136,6 +138,31 @@ pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
         } else {
             result.push(c);
         }
+    }
+
+    result
+}
+pub(crate) fn replace_gt_in_quote(content: String) -> String {
+    let lines = content.split('\n');
+    let mut is_in_quote = false;
+    let pattern = "\\gt";
+
+    let mut result = String::new();
+
+    for line in lines {
+        if line == "<blockquote>" {
+            is_in_quote = true
+        } else if line == "</blockquote>" {
+            is_in_quote = false
+        }
+        let trimmed = line.trim_end();
+
+        if is_in_quote && trimmed.ends_with(pattern) {
+            result += &trimmed[..trimmed.len() - pattern.len()]
+        } else {
+            result += line;
+        }
+        result.push('\n')
     }
 
     result
