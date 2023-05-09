@@ -18,8 +18,8 @@ mod resources;
 mod utils;
 
 #[derive(RustEmbed)]
-#[folder = "assets"]
-struct Assets;
+#[folder = "www"]
+struct WWW;
 
 fn main() -> Result<()> {
     let out_dir = PathBuf::from("out");
@@ -42,14 +42,14 @@ fn main() -> Result<()> {
         fs::copy(original_path, out_dir.join(out_path))?;
     }
 
-    let assets_dir = out_dir.join("assets");
-    fs::create_dir_all(&assets_dir)?;
-    for asset in Assets::iter() {
+    for asset in WWW::iter() {
         fs::write(
-            assets_dir.join(asset.to_string()),
-            Assets::get(&asset).expect("").data,
+            out_dir.join(asset.to_string()),
+            WWW::get(&asset).expect("").data,
         )?;
     }
+
+    let mut notes_html_list = Vec::<String>::new();
 
     let notes_dir = out_dir.join("notes");
     let notes = Note::extract(&db_path)?;
@@ -83,6 +83,12 @@ fn main() -> Result<()> {
         let replaced = replace_latex(html_content, true);
         let replaced = replace_gt_in_quote(replaced);
 
+        notes_html_list.push(format!(
+            r#"<li> <a href="{}">{}</a></li>"#,
+            &html_path.to_str().expect("").replace("out/", "/"),
+            note.title
+        ));
+
         fs::write(
             html_path,
             format!(
@@ -91,7 +97,7 @@ fn main() -> Result<()> {
 <html>
     <head>
         <meta charset="utf-8">
-        <link rel="stylesheet" href="/assets/styles.css"/>
+        <link rel="stylesheet" href="/styles.css"/>
 
         <!-- Katex -->
         <!-- TODO: Remove the use of CDNs and make this local -->
@@ -119,6 +125,7 @@ fn main() -> Result<()> {
     </head>
 
     <body>
+    <a href="/">Back</a>
         {}
     </body>
 </html>
@@ -126,9 +133,28 @@ fn main() -> Result<()> {
                 replaced
             ),
         )?;
-
-        // println!("{:?}", note.folder_path.join(&note.title));
     }
+
+    fs::write(
+        out_dir.join("index.html"),
+        format!(
+            r#"
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <meta charset="utf-8">
+                    <link rel="stylesheet" href="/styles.css"/>
+                </head>
+            
+                <body>
+                    {}
+                </body>
+            </html>
+            
+    "#,
+            notes_html_list.join("\n")
+        ),
+    )?;
 
     Ok(())
 }

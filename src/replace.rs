@@ -77,9 +77,6 @@ pub(crate) fn replace_center_tag(content: String) -> String {
 
 pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
     let mut iter = content.chars().peekable();
-    if content.contains("# Funzione continua") {
-        println!("LOL")
-    }
     let mut result = String::new();
     result.reserve(content.len());
 
