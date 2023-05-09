@@ -1,0 +1,25 @@
+body {
+  width: 85%;
+  margin: 0 auto;
+  text-align: justify;
+}
+
+th, td {
+    border-bottom: 1px solid;
+    padding: 0.5em 1em;
+}
+
+tr > td:first-child, th:first-child {
+    border-right: 1px solid;
+}
+
+table {
+    border-spacing: 0;
+}
+
+blockquote {
+    background: whitesmoke;
+    margin: 0;
+    padding: 0.25em 1em 0.25em 5em;
+    border-left: 5px rgb(195, 195, 195) solid;
+}

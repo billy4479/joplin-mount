@@ -16,7 +16,7 @@ impl Folder {
         match self.parent {
             Some(parent_id) => {
                 let parent = folders.get(&parent_id).expect("");
-                PathBuf::from(parent.get_path_with_parent(folders)).join(self.name.clone())
+                parent.get_path_with_parent(folders).join(self.name.clone())
             }
             None => PathBuf::from(self.name.clone()),
         }
@@ -62,7 +62,7 @@ impl Note {
 
         let mut result = Vec::<Note>::new();
         connection.iterate("SELECT title,body,parent_id,id FROM notes", |row| {
-            let title = row[0].1.expect("");
+            let title = row[0].1.expect("").replace('/', ".");
             let content = row[1].1.expect("");
             let parent_id = hex_to_id(row[2].1.expect("")).unwrap();
             let (_, path) = folder_and_path.get(&parent_id).expect("");
@@ -71,7 +71,7 @@ impl Note {
             result.push(Note {
                 id,
                 folder_path: path.clone(),
-                title: title.to_owned(),
+                title,
                 content: content.to_owned(),
             });
 

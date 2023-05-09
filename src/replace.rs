@@ -1,17 +1,16 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use regex::{Captures, Regex};
 
 use crate::{
     notes::Note,
-    resources::Resource,
     utils::{hex_to_id, ID},
 };
 
 pub(crate) fn replace_links(
     note: &Note,
-    resources: &HashMap<ID, Resource>,
-    notes: &Vec<Note>,
+    resources: &HashMap<ID, PathBuf>,
+    notes: &[Note],
 ) -> String {
     lazy_static! {
         static ref RE: Regex = Regex::new(r":/([0-9a-f]{32})").unwrap();
@@ -20,7 +19,7 @@ pub(crate) fn replace_links(
         let reference_id = hex_to_id(&caps[1]).unwrap();
         let resource = resources.get(&reference_id);
         let substitution = match resource {
-            Some(resource) => String::from("/") + resource.path.to_str().expect(""),
+            Some(resource) => String::from("/") + resource.to_str().expect(""),
             None => {
                 let note_reference = notes.iter().find(|x| x.id == reference_id);
                 match note_reference {
@@ -30,7 +29,7 @@ pub(crate) fn replace_links(
                             .join(note_reference.title.clone())
                             .to_str()
                             .expect("")
-                            .replace(" ", "%20");
+                            .replace(' ', "%20");
                         format!("/notes/{}.md", note_path)
                     }
                     None => return format!("RESOURCE NOT FOUND: {}", hex::encode(reference_id)),
@@ -45,7 +44,7 @@ pub(crate) fn replace_links(
 
 pub(crate) fn replace_md_to_html(content: String) -> String {
     lazy_static! {
-        static ref RE: Regex = Regex::new(r"\[\w*\]\([\w/%\d]*.(md)\)").unwrap();
+        static ref RE: Regex = Regex::new(r"\[[\w\* ]*\]\([\w/%\d]*.(md)\)").unwrap();
     }
 
     RE.replace_all(&content, |caps: &Captures| {
@@ -67,11 +66,18 @@ pub(crate) fn replace_width(content: String) -> String {
 }
 
 pub(crate) fn replace_curly_braces(content: String) -> String {
-    content.replace("{", "\\{").replace("}", "\\}")
+    content.replace('{', "\\{").replace('}', "\\}")
+}
+
+pub(crate) fn replace_center_tag(content: String) -> String {
+    content
+        .replace("<center>", "<div style=\"text-align:center\">")
+        .replace("</center>", "</div>")
 }
 
 pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
     let mut iter = content.chars().peekable();
+
     let mut result = String::new();
     result.reserve(content.len());
 
@@ -85,26 +91,9 @@ pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
                 if is_inline {
                     is_in_latex = false;
                     is_inline = false;
-                } else {
-                    if let Some(peek) = iter.peek() {
-                        if *peek == '$' {
-                            is_in_latex = false;
-                            if after_html {
-                                result.push('\n');
-                            }
-                            result.push(*peek);
-                            iter.next();
-                        } else {
-                            is_inline = true;
-                        }
-                    }
-                }
-            } else {
-                // Start
-                if let Some(peek) = iter.peek() {
+                } else if let Some(peek) = iter.peek() {
                     if *peek == '$' {
-                        is_inline = false;
-                        is_in_latex = true;
+                        is_in_latex = false;
                         if after_html {
                             result.push('\n');
                         }
@@ -112,7 +101,25 @@ pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
                         iter.next();
                     } else {
                         is_inline = true;
-                        is_in_latex = true;
+                    }
+                }
+            } else {
+                // Start
+                if let Some(peek) = iter.peek() {
+                    match *peek {
+                        '$' => {
+                            is_inline = false;
+                            is_in_latex = true;
+                            if after_html {
+                                result.push('\n');
+                            }
+                            result.push(*peek);
+                            iter.next();
+                        }
+                        _ => {
+                            is_inline = true;
+                            is_in_latex = false;
+                        }
                     }
                 }
             }
@@ -122,8 +129,8 @@ pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
             match c {
                 '\n' => result.push(' '),
                 '\\' => result += "\\\\",
-                '<' => result += "\\lt",
-                '>' => result += "\\gt",
+                '<' => result += "\\lt ",
+                '>' => result += "\\gt ",
                 _ => result.push(c),
             }
         } else {
