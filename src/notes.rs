@@ -23,16 +23,17 @@ impl Folder {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Note {
     pub id: ID,
-    pub folder_path: PathBuf,
     pub title: String,
     pub content: String,
 }
 
+pub(crate) type Notebook = HashMap<PathBuf, Vec<Note>>;
+
 impl Note {
-    pub(crate) fn extract(db: &PathBuf) -> Result<Vec<Note>> {
+    pub(crate) fn extract(db: &PathBuf) -> Result<Notebook> {
         let connection = sqlite::open(db)?;
 
         let mut folders = Folders::new();
@@ -60,7 +61,7 @@ impl Note {
             })
             .collect();
 
-        let mut result = Vec::<Note>::new();
+        let mut result = Notebook::new();
         connection.iterate("SELECT title,body,parent_id,id FROM notes", |row| {
             let title = row[0].1.expect("").replace('/', ".");
             let content = row[1].1.expect("");
@@ -68,12 +69,20 @@ impl Note {
             let (_, path) = folder_and_path.get(&parent_id).expect("");
             let id = hex_to_id(row[3].1.expect("")).unwrap();
 
-            result.push(Note {
+            let note = Note {
                 id,
-                folder_path: path.clone(),
                 title,
                 content: content.to_owned(),
-            });
+            };
+
+            match result.get_mut(path) {
+                Some(x) => {
+                    x.push(note);
+                }
+                None => {
+                    result.insert(path.to_owned(), vec![note]);
+                }
+            }
 
             true
         })?;

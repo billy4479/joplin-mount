@@ -1,6 +1,10 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
+use itertools::Itertools;
 use notes::Note;
 use replace::{
     replace_center_tag, replace_curly_braces, replace_gt_in_quote, replace_latex, replace_links,
@@ -22,7 +26,7 @@ mod utils;
 struct WWW;
 
 fn main() -> Result<()> {
-    let out_dir = PathBuf::from("out");
+    let out_dir = Path::new("out");
 
     let joplin_data_path = dirs::config_dir()
         .expect("Missing config folder")
@@ -49,50 +53,64 @@ fn main() -> Result<()> {
         )?;
     }
 
-    let mut notes_html_list = Vec::<String>::new();
+    let mut notes_html = String::new();
 
-    let notes_dir = out_dir.join("notes");
-    let notes = Note::extract(&db_path)?;
-    for note in &notes {
-        let path = notes_dir.clone().join(&note.folder_path);
-        fs::create_dir_all(&path)?;
-        let md_path = path.join(format!("{}.md", note.title));
+    let notes_out_dir = out_dir.join("notes");
+    let notebooks = Note::extract(&db_path)?;
+    for (notebook_path, notes) in notebooks.iter().sorted_by(|a, b| {
+        let (a, _) = *a;
+        let (b, _) = *b;
+        Ord::cmp(&a.to_string_lossy(), &b.to_string_lossy())
+    }) {
+        let full_notebook_path = notes_out_dir.join(notebook_path);
+        fs::create_dir_all(&full_notebook_path)?;
 
-        let replaced = replace_links(note, &resources, &notes);
-        let replaced = replace_width(replaced);
-        let replaced = replace_center_tag(replaced);
-        let replaced = replace_latex(replaced, false);
-        fs::write(md_path, &replaced)?;
+        notes_html += format!("<li> {} <ul> \n", &notebook_path.to_string_lossy()).as_str();
 
-        let replaced = replace_curly_braces(replaced);
-        let replaced = replace_md_to_html(replaced);
+        let mut notes = (*notes).clone();
+        notes.sort_by(|a, b| Ord::cmp(&a.title, &b.title));
 
-        let html_path = path.join(format!("{}.html", note.title));
-        let html_content = markdown::to_html_with_options(
-            &replaced,
-            &markdown::Options {
-                parse: markdown::ParseOptions::gfm(),
-                compile: markdown::CompileOptions {
-                    allow_dangerous_html: true,
-                    allow_dangerous_protocol: true,
-                    ..markdown::CompileOptions::default()
+        for note in notes {
+            let html_name = format!("{}.html", note.title);
+            notes_html += format!(
+                "<li> <a href=\"/notes/{}/{}\">{}</a> </li>\n",
+                &notebook_path.to_string_lossy(),
+                &html_name,
+                &note.title
+            )
+            .as_str();
+
+            let md_path = full_notebook_path.join(format!("{}.md", note.title));
+
+            let replaced = replace_links(&note, &resources, &notebooks);
+            let replaced = replace_width(replaced);
+            let replaced = replace_center_tag(replaced);
+            let replaced = replace_latex(replaced, false);
+            fs::write(md_path, &replaced)?;
+
+            let replaced = replace_curly_braces(replaced);
+            let replaced = replace_md_to_html(replaced);
+
+            let html_path = full_notebook_path.join(html_name);
+            let html_content = markdown::to_html_with_options(
+                &replaced,
+                &markdown::Options {
+                    parse: markdown::ParseOptions::gfm(),
+                    compile: markdown::CompileOptions {
+                        allow_dangerous_html: true,
+                        allow_dangerous_protocol: true,
+                        ..markdown::CompileOptions::default()
+                    },
                 },
-            },
-        )
-        .unwrap();
-        let replaced = replace_latex(html_content, true);
-        let replaced = replace_gt_in_quote(replaced);
+            )
+            .unwrap();
+            let replaced = replace_latex(html_content, true);
+            let replaced = replace_gt_in_quote(replaced);
 
-        notes_html_list.push(format!(
-            r#"<li> <a href="{}">{}</a></li>"#,
-            &html_path.to_str().expect("").replace("out/", "/"),
-            note.title
-        ));
-
-        fs::write(
-            html_path,
-            format!(
-                r#"
+            fs::write(
+                html_path,
+                format!(
+                    r#"
 <!DOCTYPE html>
 <html>
     <head>
@@ -130,9 +148,12 @@ fn main() -> Result<()> {
     </body>
 </html>
 "#,
-                replaced
-            ),
-        )?;
+                    replaced
+                ),
+            )?;
+        }
+
+        notes_html += "</ul> </li> \n";
     }
 
     fs::write(
@@ -147,12 +168,14 @@ fn main() -> Result<()> {
                 </head>
             
                 <body>
-                    {}
+                    <ul>
+                        {}
+                    </ul>
                 </body>
             </html>
             
     "#,
-            notes_html_list.join("\n")
+            notes_html
         ),
     )?;
 

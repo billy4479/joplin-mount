@@ -3,14 +3,14 @@ use std::{collections::HashMap, path::PathBuf};
 use regex::{Captures, Regex};
 
 use crate::{
-    notes::Note,
+    notes::{Note, Notebook},
     utils::{hex_to_id, ID},
 };
 
 pub(crate) fn replace_links(
     note: &Note,
     resources: &HashMap<ID, PathBuf>,
-    notes: &[Note],
+    notebooks: &Notebook,
 ) -> String {
     lazy_static! {
         static ref RE: Regex = Regex::new(r":/([0-9a-f]{32})").unwrap();
@@ -21,19 +21,19 @@ pub(crate) fn replace_links(
         let substitution = match resource {
             Some(resource) => String::from("/") + resource.to_str().expect(""),
             None => {
-                let note_reference = notes.iter().find(|x| x.id == reference_id);
-                match note_reference {
-                    Some(note_reference) => {
-                        let note_path = note_reference
-                            .folder_path
-                            .join(note_reference.title.clone())
-                            .to_str()
-                            .expect("")
-                            .replace(' ', "%20");
-                        format!("/notes/{}.md", note_path)
+                for (notebook_path, notes) in notebooks {
+                    for note in notes {
+                        if note.id == reference_id {
+                            let note_path = notebook_path
+                                .join(&note.title)
+                                .to_string_lossy()
+                                .replace(' ', "%20");
+                            return format!("/notes/{}.md", note_path);
+                        }
                     }
-                    None => return format!("RESOURCE NOT FOUND: {}", hex::encode(reference_id)),
                 }
+
+                format!("RESOURCE NOT FOUND: {}", hex::encode(reference_id))
             }
         };
 
