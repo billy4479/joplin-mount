@@ -130,6 +130,7 @@ pub(crate) fn replace_latex(content: String, after_html: bool) -> String {
                 '\\' => result += "\\\\",
                 '<' => result += "\\lt ",
                 '>' => result += "\\gt ",
+                '_' => result += "\\_",
                 _ => result.push(c),
             }
         } else {
