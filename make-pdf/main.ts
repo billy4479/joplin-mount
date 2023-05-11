@@ -24,18 +24,18 @@ async function walk(dir: string, callback: (entry: string) => Promise<void>) {
   }
 }
 
-await fs.mkdir('../out/pdf', { recursive: true });
+await fs.mkdir('../output/pdf', { recursive: true });
 
-await walk('../out', async (entry: string) => {
+await walk('../output', async (entry: string) => {
   if (!entry.endsWith('.html')) return;
-  const url = `http://localhost:8000${entry.replaceAll('../out', '')}`;
+  const url = `http://localhost:8000${entry.replaceAll('../output', '')}`;
   console.log(url);
 
   await page.goto(url);
   await page.waitForNetworkIdle();
 
   const outFileName = entry
-    .replaceAll('../out/', '../out/pdf/')
+    .replaceAll('../output/', '../output/pdf/')
     .replaceAll('/notes/', '/')
     .replaceAll('.html', '.pdf');
   await fs.mkdir(path.parse(outFileName).dir, { recursive: true });

@@ -3,7 +3,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
+use clap::Parser;
 use itertools::Itertools;
 use notes::Note;
 use replace::{
@@ -25,43 +26,79 @@ mod utils;
 #[folder = "www"]
 struct WWW;
 
+#[derive(Parser)]
+struct Config {
+    #[arg(long)]
+    joplin_data_path: Option<PathBuf>,
+
+    #[arg(long)]
+    output: Option<PathBuf>,
+
+    #[arg(long, default_value_t = false)]
+    pdf: bool,
+
+    #[arg(long, default_value_t = false)]
+    clean: bool,
+
+    #[arg(long, default_value_t = false)]
+    print_out_dir: bool,
+}
+
 fn main() -> Result<()> {
-    let out_dir = Path::new("out");
+    let config = Config::parse();
+    let joplin_data_path = config.joplin_data_path.unwrap_or(
+        dirs::config_dir()
+            .ok_or(anyhow!("Config directory not found"))?
+            .join("joplin-desktop"),
+    );
+    let joplin_db_path = joplin_data_path.join("database.sqlite");
+    let joplin_resources_path = joplin_data_path.join("resources");
+    let out_dir = config.output.unwrap_or(PathBuf::from("output"));
 
-    let joplin_data_path = dirs::config_dir()
-        .expect("Missing config folder")
-        .join("joplin-desktop");
-    let db_path = joplin_data_path.join("database.sqlite");
-    let resources_path = joplin_data_path.join("resources");
+    if config.clean {
+        match fs::remove_dir_all(&out_dir) {
+            Ok(()) => Ok(()),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => Ok(()),
+                _ => Err(e),
+            },
+        }?;
+    }
 
-    fs::create_dir_all(out_dir.join("resources"))?;
+    fs::create_dir_all(&out_dir)?;
+    fs::write(out_dir.join(".gitignore"), "*")?;
 
-    let mut resources = extract_resources(&db_path)?;
-    let resource_base_dir = PathBuf::from("resources");
-    for resource in &mut resources {
-        let original_path = resources_path.clone().join(&resource.1);
-        let out_path = resource_base_dir.join(&resource.1);
-        *resource.1 = out_path.clone();
+    let out_resources_dir = out_dir.join("resources");
+    fs::create_dir_all(&out_resources_dir)?;
 
-        fs::copy(original_path, out_dir.join(out_path))?;
+    let resources = extract_resources(&joplin_db_path)?;
+    for resource_path in resources.values() {
+        let original_path = joplin_resources_path.join(resource_path);
+        let out_path = out_resources_dir.join(resource_path);
+
+        fs::copy(original_path, out_path)?;
     }
 
     for asset in WWW::iter() {
         fs::write(
             out_dir.join(asset.to_string()),
-            WWW::get(&asset).expect("").data,
+            WWW::get(&asset)
+                .ok_or(anyhow!("Asset {asset} not found"))?
+                .data,
         )?;
     }
 
     let mut notes_html = String::new();
 
     let notes_out_dir = out_dir.join("notes");
-    let notebooks = Note::extract(&db_path)?;
-    for (notebook_path, notes) in notebooks.iter().sorted_by(|a, b| {
+    let notebooks = Note::extract(&joplin_db_path)?;
+    let sorted_notebooks = notebooks.iter().sorted_by(|a, b| {
         let (a, _) = *a;
         let (b, _) = *b;
         Ord::cmp(&a.to_string_lossy(), &b.to_string_lossy())
-    }) {
+    });
+
+    for (notebook_path, notes) in sorted_notebooks {
         let full_notebook_path = notes_out_dir.join(notebook_path);
         fs::create_dir_all(&full_notebook_path)?;
 
@@ -103,7 +140,8 @@ fn main() -> Result<()> {
                     },
                 },
             )
-            .unwrap();
+            .map_err(|x: String| anyhow!(x))?;
+
             let replaced = replace_latex(html_content, true);
             let replaced = replace_gt_in_quote(replaced);
 
@@ -178,6 +216,10 @@ fn main() -> Result<()> {
             notes_html
         ),
     )?;
+
+    if config.print_out_dir {
+        println!("{}", out_dir.to_string_lossy())
+    }
 
     Ok(())
 }

@@ -19,7 +19,7 @@ pub(crate) fn replace_links(
         let reference_id = hex_to_id(&caps[1]).unwrap();
         let resource = resources.get(&reference_id);
         let substitution = match resource {
-            Some(resource) => String::from("/") + resource.to_str().expect(""),
+            Some(resource) => String::from("/") + &resource.to_string_lossy(),
             None => {
                 for (notebook_path, notes) in notebooks {
                     for note in notes {

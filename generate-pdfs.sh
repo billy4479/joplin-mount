@@ -2,19 +2,14 @@
 
 set -e
 
-if [ "$1" = "--clean" ]; then
-    rm -rf out
-    shift
-fi
-
-cargo run --release
+OUTDIR=$(cargo run --release -q -- $@ --print-out-dir)
 
 pushd make-pdf
 
 if [ ! -d "node_modules" ]; then
     pnpm i
 fi
-npx http-server ../out -p 8000 -s &
+npx http-server "../$OUTDIR" -p 8000 -s &
 SERVER_PID=$!
 
 npx tsx main.ts
