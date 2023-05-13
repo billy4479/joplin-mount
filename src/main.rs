@@ -1,12 +1,10 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use itertools::Itertools;
 use notes::Note;
+use pdf::create_pdfs;
 use replace::{
     replace_center_tag, replace_curly_braces, replace_gt_in_quote, replace_latex, replace_links,
     replace_md_to_html, replace_width,
@@ -18,12 +16,14 @@ use rust_embed::RustEmbed;
 extern crate lazy_static;
 
 mod notes;
+mod pdf;
 mod replace;
 mod resources;
 mod utils;
 
 #[derive(RustEmbed)]
 #[folder = "www"]
+#[allow(clippy::upper_case_acronyms)]
 struct WWW;
 
 #[derive(Parser)]
@@ -42,9 +42,12 @@ struct Config {
 
     #[arg(long, default_value_t = false)]
     print_out_dir: bool,
+
+    webdriver_url: Option<String>,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let config = Config::parse();
     let joplin_data_path = config.joplin_data_path.unwrap_or(
         dirs::config_dir()
@@ -71,6 +74,7 @@ fn main() -> Result<()> {
     let out_resources_dir = out_dir.join("resources");
     fs::create_dir_all(&out_resources_dir)?;
 
+    // Write resources
     let resources = extract_resources(&joplin_db_path)?;
     for resource_path in resources.values() {
         let original_path = joplin_resources_path.join(resource_path);
@@ -79,6 +83,7 @@ fn main() -> Result<()> {
         fs::copy(original_path, out_path)?;
     }
 
+    // Copy assets in /www
     for asset in WWW::iter() {
         fs::write(
             out_dir.join(asset.to_string()),
@@ -98,6 +103,7 @@ fn main() -> Result<()> {
         Ord::cmp(&a.to_string_lossy(), &b.to_string_lossy())
     });
 
+    // Write notes
     for (notebook_path, notes) in sorted_notebooks {
         let full_notebook_path = notes_out_dir.join(notebook_path);
         fs::create_dir_all(&full_notebook_path)?;
@@ -194,6 +200,7 @@ fn main() -> Result<()> {
         notes_html += "</ul> </li> \n";
     }
 
+    // Write index.html
     fs::write(
         out_dir.join("index.html"),
         format!(
@@ -219,6 +226,17 @@ fn main() -> Result<()> {
 
     if config.print_out_dir {
         println!("{}", out_dir.to_string_lossy())
+    }
+
+    if config.pdf {
+        create_pdfs(
+            &out_dir,
+            config
+                .webdriver_url
+                .map(|x| x.as_str())
+                .unwrap_or("http://localhost:4444"), // Default geckodriver url
+        )
+        .await?
     }
 
     Ok(())

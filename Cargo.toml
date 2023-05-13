@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.70"
 clap = { version = "4.2.7", features = ["derive"] }
 dirs = "5.0.0"
+fantoccini = "0.19.3"
 hex = "0.4.3"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
@@ -16,3 +17,4 @@ markdown = "1.0.0-alpha.7"
 regex = "1.7.3"
 rust-embed = "6.6.1"
 sqlite = "0.30.4"
+tokio = { version = "1.28.1", features = ["full"] }
