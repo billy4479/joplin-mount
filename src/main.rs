@@ -15,6 +15,9 @@ use rust_embed::RustEmbed;
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use(defer)]
+extern crate scopeguard;
+
 mod notes;
 mod pdf;
 mod replace;
@@ -42,8 +45,6 @@ struct Config {
 
     #[arg(long, default_value_t = false)]
     print_out_dir: bool,
-
-    webdriver_url: Option<String>,
 }
 
 #[tokio::main]
@@ -229,14 +230,7 @@ async fn main() -> Result<()> {
     }
 
     if config.pdf {
-        create_pdfs(
-            &out_dir,
-            config
-                .webdriver_url
-                .map(|x| x.as_str())
-                .unwrap_or("http://localhost:4444"), // Default geckodriver url
-        )
-        .await?
+        create_pdfs(&out_dir)?;
     }
 
     Ok(())

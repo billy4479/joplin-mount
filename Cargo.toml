@@ -6,15 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.70"
-clap = { version = "4.2.7", features = ["derive"] }
-dirs = "5.0.0"
-fantoccini = "0.19.3"
-hex = "0.4.3"
-itertools = "0.10.5"
-lazy_static = "1.4.0"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+dirs = "5"
+headless_chrome = "1.0.5"
+hex = "0.4"
+itertools = "0.10"
+lazy_static = "1"
 markdown = "1.0.0-alpha.7"
-regex = "1.7.3"
-rust-embed = "6.6.1"
-sqlite = "0.30.4"
-tokio = { version = "1.28.1", features = ["full"] }
+regex = "1"
+rust-embed = "6"
+scopeguard = "1"
+sqlite = "0.30"
+tokio = { version = "1", features = ["full"] }
+walkdir = "2"
+warp = "0.3"

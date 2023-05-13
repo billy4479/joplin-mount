@@ -18,8 +18,9 @@ pub(crate) fn replace_links(
     let replaced = RE.replace_all(&note.content, |caps: &Captures| {
         let reference_id = hex_to_id(&caps[1]).unwrap();
         let resource = resources.get(&reference_id);
-        let substitution = match resource {
-            Some(resource) => String::from("/") + &resource.to_string_lossy(),
+
+        match resource {
+            Some(resource) => format!("/{}/{}", "resources", &resource.to_string_lossy()),
             None => {
                 for (notebook_path, notes) in notebooks {
                     for note in notes {
@@ -35,9 +36,7 @@ pub(crate) fn replace_links(
 
                 format!("RESOURCE NOT FOUND: {}", hex::encode(reference_id))
             }
-        };
-
-        substitution
+        }
     });
     replaced.to_string()
 }
