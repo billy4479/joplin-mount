@@ -1,5 +1,5 @@
 use anyhow::Result;
-use headless_chrome::{types::PrintToPdfOptions, Browser, LaunchOptions};
+use headless_chrome::{Browser, LaunchOptions};
 use std::{
     fs,
     path::{Path, PathBuf},
