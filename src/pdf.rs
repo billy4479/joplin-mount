@@ -1,5 +1,5 @@
 use anyhow::Result;
-use headless_chrome::{Browser, LaunchOptions};
+use headless_chrome::{types::PrintToPdfOptions, Browser, LaunchOptions};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -60,7 +60,10 @@ pub(crate) fn create_pdfs(outdir: &PathBuf) -> Result<()> {
 
         tab.navigate_to(url.as_str())?;
         tab.wait_until_navigated()?;
-        let pdf = tab.print_to_pdf(None)?;
+        let pdf = tab.print_to_pdf(Some(PrintToPdfOptions {
+            print_background: Some(true),
+            ..Default::default()
+        }))?;
         fs::write(out_file_path, pdf)?;
     }
 
